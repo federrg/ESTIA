@@ -4,7 +4,7 @@ import time
 import sys
 from motionFunctionsLib import *
 
-AMSNetId='172.171.69.1.1.1'
+AMSNetId='5.82.112.102.1.1'
 
 hexScrews = pd.read_csv('HexKeysPos.txt', header=None)
 hexScrews.columns = ['X-Axis6','Z-Axis7']
@@ -38,11 +38,13 @@ def waitForAxis6n7inPosition():
     i = 0
     timeout = 100000
     while not inPosition:
-        if axis6.getErrorStatus:
+        if axis6.getErrorStatus():
             print(f"   ERROR while positionnig axis 6")
+            print(f"   ERROR ID: {axis6.getErrorId()}")
             return False
         elif axis7.getErrorStatus():
             print(f"   ERROR while positionnig axis 7")
+            print(f"   ERROR ID: {axis7.getErrorId()}")
             return False
         elif i == timeout:
             print(f"   TIMEOUT: position never reached")
@@ -56,19 +58,20 @@ def waitForAxis6n7inPosition():
 
 def insertAxis8():
     axis8.moveAbsoluteAndWait(axis8.getHomePosition())
+    print(f"Axis 8 in position: {axis8.getActPos()}")
     axis8.moveAbsolute(0)
     time.sleep(0.5)
     while axis8.getMovingStatus():
         if axis8.getErrorStatus():
             print(f'   ERROR. axis 8 has error ID = {axis8.getErrorId()}')
             return False
-    if axis8.getLimitBwd():
-        print(f"Axis 8 on Limit Bwd, fully inserted")
-        return True
-    elif axis8.getInterlockedBwd():
-        print(f"Collision switches activated, bwd movement interlocked")
-        while axis8.getInterlockedBwd():
-            axis10.moveRelativeAndWait(30)
+        if axis8.getLimitBwd():
+            print(f"Axis 8 on Limit Bwd, fully inserted")
+            return True
+        elif axis8.getInterlockedBwd():
+            print(f"Collision switches activated, bwd movement interlocked")
+            while axis8.getInterlockedBwd():
+                axis10.moveRelativeAndWait(30)
         axis8.moveAbsoluteAndWait(0)
         if axis8.getLimitBwd():
             print(f"Axis 8 on Limit Bwd, fully inserted")
@@ -137,7 +140,7 @@ if not axis10.getHomedStatus():
     else:
         print(f"   ERROR: error in positioning axis 6 or 7. Position not reached")
         sys.exit()
-
+"""
 #Hex screws test sequence
 print(f"    Hex position testing ready to begin")
 
@@ -154,6 +157,6 @@ for i in range(len(hexScrews)):
             hexScrews.loc[i,'Range-Axis10']=fullRotationAxis10()
         else:
             hexScrews.loc[i,'Range-Axis10']="FAIL"
-    
+    """
 
 
