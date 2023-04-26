@@ -65,23 +65,19 @@ def insertAxis8():
         if axis8.getErrorStatus():
             print(f'   ERROR. axis 8 has error ID = {axis8.getErrorId()}')
             return False
-        if axis8.getLimitBwd():
-            print(f"Axis 8 on Limit Bwd, fully inserted")
+    if plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewInserted8", pyads.PLCTYPE_BOOL):
+        print(f"Hex Screw Axis 8 fully inserted")
+        return True
+    elif plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewCollided8", pyads.PLCTYPE_BOOL):
+        print(f"Hex screw Axis 8 in Collided state")
+        while not plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewInserted8", pyads.PLCTYPE_BOOL):
+            axis10.moveRelativeAndWait(30)
+        if plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewInserted8", pyads.PLCTYPE_BOOL):
+            print(f"Hex screw Axis 8 fully inserted")
             return True
-        elif axis8.getInterlockedBwd():
-            print(f"Collision switches activated, bwd movement interlocked")
-            while axis8.getInterlockedBwd():
-                axis10.moveRelativeAndWait(30)
-        axis8.moveAbsoluteAndWait(0)
-        if axis8.getLimitBwd():
-            print(f"Axis 8 on Limit Bwd, fully inserted")
-            return True
-        else:
-            print(f"   ERROR AXis 8 not fully inserted")
-            return False
     else:
-        print(f"   ERROR Axis 8 ")
-        return False
+            print(f"   ERROR Could not fully insert Hex key of Axis 8, check psotion of axis 6 and 7")
+            return False
 
 def fullRotationAxis10():
     axis10.jogBwd()
@@ -129,7 +125,7 @@ if not axis10.getHomedStatus():
     if waitForAxis6n7inPosition():
         print(f"Axis 6 in position {Axis6Pos[0]} and axis 7 in {Axis7Pos[0]} ")
         if insertAxis8():
-            print(f"Axis 8 fully inserted, homing axis 10")
+            print(f"Homing axis 10")
             axis10.home()
             time.sleep(1)
             if axis10.getHomedStatus():
@@ -140,7 +136,7 @@ if not axis10.getHomedStatus():
     else:
         print(f"   ERROR: error in positioning axis 6 or 7. Position not reached")
         sys.exit()
-"""
+
 #Hex screws test sequence
 print(f"    Hex position testing ready to begin")
 
@@ -157,6 +153,6 @@ for i in range(len(hexScrews)):
             hexScrews.loc[i,'Range-Axis10']=fullRotationAxis10()
         else:
             hexScrews.loc[i,'Range-Axis10']="FAIL"
-    """
+            
 
 
