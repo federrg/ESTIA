@@ -88,7 +88,7 @@ AMSNetId='5.82.112.102.1.1'
 
 
 
-"""
+
 #PLC connection
 plc1=plc(plcAmsNetId=AMSNetId, plcPort=852)
 plc1.connect()
@@ -100,7 +100,7 @@ axis8=axis(plc1, axisNum=8)
 axis9=axis(plc1, axisNum=9)
 axis10=axis(plc1, axisNum=10)
 axis11=axis(plc1, axisNum=11)
-"""
+
 #Functions to be used
 def waitForAxis6n7inPosition():
     inPosition = False
@@ -126,43 +126,48 @@ def waitForAxis6n7inPosition():
         return True
 
 def insertAxis8():
-    axis8.moveAbsoluteAndWait(axis8.getHomePosition())
+    axis8.moveAbsoluteAndWait(axis8.getHomePosition()+1)
     print(f"Axis 8 in position: {axis8.getActPos()}")
     axis8.moveAbsolute(0)
     time.sleep(0.5)
+    retries = 5
+    tries = 1
     while axis8.getMovingStatus():
         if axis8.getErrorStatus():
             print(f'   ERROR. axis 8 has error ID = {axis8.getErrorId()}')
             return False
-        if axis8.getLimitBwd():
-            print(f"Axis 8 on Limit Bwd, fully inserted")
-            return True
-        elif axis8.getInterlockedBwd():
-            print(f"Collision switches activated, bwd movement interlocked")
-            while axis8.getInterlockedBwd():
-                axis10.moveRelativeAndWait(30)
-        axis8.moveAbsoluteAndWait(0)
-        if axis8.getLimitBwd():
-            print(f"Axis 8 on Limit Bwd, fully inserted")
-            return True
-        else:
-            print(f"   ERROR AXis 8 not fully inserted")
-            return False
+    if plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewInserted8", pyads.PLCTYPE_BOOL):
+        print(f"Axis 8 fully inserted")
+        return True
+    elif plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewCollided8", pyads.PLCTYPE_BOOL):
+        print(f"Collision detected")
+        while tries <= retries:
+            axis10.moveRelativeAndWait(30)
+            if plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewInserted8", pyads.PLCTYPE_BOOL):
+                print(f"Axis 8 fully inserted")
+                return True
+            else:
+                tries = tries + 1
+        print(f"   ERROR Axis 8 still in collision state after 5 tries ")
+        return False
+    elif plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewMissed8", pyads.PLCTYPE_BOOL):
+        print(f"Axis 8 missed, move to a hex screw insert posiiton")
+        return False
     else:
-        print(f"   ERROR Axis 8 ")
+        print(f"   ERROR Axis 8 not fully inserted cehck curren tstate")
         return False
 
 def fullRotationAxis10():
     axis10.jogBwd()
     time.sleep(0.5)
-    if axis10.waitForStatusBit(axis10.getMovingStatus, False): #Check if it is better to use lag error
+    if axis10.waitForStatusBit(axis10.getErrorStatus, True): #Check if it is better to use lag error
         axis10.jogStop()
         maxBwdPos = axis10.getActPos()
         axis10.axisInit()
     
     axis10.jogBwd()
     time.sleep(0.5)
-    if axis10.waitForStatusBit(axis10.getMovingStatus, False): #Check if it is better to use lag error
+    if axis10.waitForStatusBit(axis10.getErrorStatus, True): #Check if it is better to use lag error
         axis10.jogStop()
         maxFwdPos = axis10.getActPos()
         axis10.axisInit()
@@ -175,11 +180,14 @@ def fullRotationAxis10():
 # Homing axes 8 and 9
 print(f"    INITIALIZING TEST")
 print(f"  Homing axes 8 and 9")
+axis8.axisInit()
 axis8.home()
+axis9.axisInit()
 axis9.home()
 
 if axis8.waitForStatusBit(axis8.getHomedStatus, True) and axis9.waitForStatusBit(axis9.getHomedStatus, True):
     print(f"Axis 8 and 9 homed")
+    input("Axis 8 and 9 homed Press enter to continue...")
 elif not axis8.getHomedStatus():
     print(f"    ERROR:  Axis 8 cannot be homed")
     sys.exit()
@@ -191,6 +199,7 @@ else:
     sys.exit()
 
 # Homing axis 10
+axis10.axisInit()
 if not axis10.getHomedStatus():
     print(f"Axis 10 not homed, moving to first screw")
     axis6.moveAbsolute(Axis6Pos[0])
@@ -203,6 +212,7 @@ if not axis10.getHomedStatus():
             time.sleep(1)
             if axis10.getHomedStatus():
                 print(f"Axis 10 homed")
+                input("Axis 10 homed Press enter to continue...")
             else:
                 print(f"   ERROR: Cannot home axis 10")
                 sys.exit()
@@ -215,6 +225,9 @@ if not axis10.getHomedStatus():
 print(f"    Hex position testing ready to begin")
 
 for i in range(len(positionsIndex)):
+    axis8.moveAbsoluteAndWait(28)
+    axis9.moveAbsoluteAndWait(28)
+
     print(f'Moving axis 6 to position [{positionsIndex[i]}]: {Axis6Pos[positionsIndex[i]]}')
     axis6.moveAbsolute(Axis6Pos[positionsIndex[i]])
 
