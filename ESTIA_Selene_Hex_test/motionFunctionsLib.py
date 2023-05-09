@@ -1044,7 +1044,7 @@ class PneumaticAxis:
     def getPSSPermitOKStatus(self):
         return self.getGenericVariable("stPneumaticAxisStatus.bPSSPermitOK", pyads.PLCTYPE_BOOL)
     
-    def getErrortatus(self):
+    def getErrorStatus(self):
         return self.getGenericVariable("stPneumaticAxisStatus.bError", pyads.PLCTYPE_BOOL)
     
     def getTimeElapsedExtend(self):
