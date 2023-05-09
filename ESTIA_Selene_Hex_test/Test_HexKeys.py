@@ -3,9 +3,19 @@ import pyads
 import time
 import sys
 from motionFunctionsLib import *
+import math
 
-AMSNetId='5.82.112.102.1.1'
 
+
+try:
+    section = sys.argv[1]
+except:
+    section = None
+#section = None is top and bottom
+#section = --top is just the top mirrors
+#section = --bottom is just the bottom mirrors
+
+#Preparing pandas data
 hexScrews = pd.read_csv('HexKeysPos.txt', header=None)
 hexScrews.columns = ['X-Axis6','Z-Axis7']
 hexScrews['Range-Axis10']='0'
@@ -20,6 +30,65 @@ print(f'{Axis7Pos} \n')
 rangeAxis10 = hexScrews['Range-Axis10']
 print(f'{rangeAxis10} \n')
 
+#Position index accoridng to option top, bottom or everything
+screwArrayTop = []
+screwArrayBottom = []
+screwArrayTotal = list(range(0, len(hexScrews)))
+arrayDone = False
+
+if section == "--top":
+    index = 0
+    indexLimit = 2
+    factor3 = 2
+    while not arrayDone:
+        while index <= indexLimit:
+            if  index == len(hexScrews):
+                break
+            else:
+                screwArrayTop.append(index)
+                index = index + 1
+
+            if index == indexLimit+1:
+                index = 3*factor3
+                indexLimit = 3*factor3+2
+                break
+        
+        factor3 = factor3+2
+        if index >= len(hexScrews):
+            arrayDone = True
+    positionsIndex = screwArrayTop
+    
+
+elif section == "--bottom":
+    index = 3
+    indexLimit = 5
+    factor3 = 3
+    while not arrayDone:
+        while index <= indexLimit:
+            if  index == len(hexScrews):
+                break
+            else:
+                screwArrayBottom.append(index)
+                index = index + 1
+            if index == indexLimit+1:
+                index = 3*factor3
+                indexLimit = 3*factor3+2
+                break
+        
+        factor3 = factor3+2
+        if index >= len(hexScrews):
+            arrayDone = True
+    positionsIndex = screwArrayBottom
+else:
+    positionsIndex = screwArrayTotal
+
+print(f'Array of positions to be tested {positionsIndex}')
+
+AMSNetId='5.82.112.102.1.1'
+
+
+
+"""
 #PLC connection
 plc1=plc(plcAmsNetId=AMSNetId, plcPort=852)
 plc1.connect()
@@ -31,7 +100,7 @@ axis8=axis(plc1, axisNum=8)
 axis9=axis(plc1, axisNum=9)
 axis10=axis(plc1, axisNum=10)
 axis11=axis(plc1, axisNum=11)
-
+"""
 #Functions to be used
 def waitForAxis6n7inPosition():
     inPosition = False
@@ -140,23 +209,27 @@ if not axis10.getHomedStatus():
     else:
         print(f"   ERROR: error in positioning axis 6 or 7. Position not reached")
         sys.exit()
-"""
+
 #Hex screws test sequence
+
 print(f"    Hex position testing ready to begin")
 
-for i in range(len(hexScrews)):
-    print(f'Moving axis 6 to position [{i}]: {Axis6Pos[i]}')
-    axis6.moveAbsolute(Axis6Pos[i])
+for i in range(len(positionsIndex)):
+    print(f'Moving axis 6 to position [{positionsIndex[i]}]: {Axis6Pos[positionsIndex[i]]}')
+    axis6.moveAbsolute(Axis6Pos[positionsIndex[i]])
 
-    print(f'Moving axis 7 to position [{i}]: {Axis7Pos[i]}')
-    axis7.moveAbsolute(Axis7Pos[i])
+    print(f'Moving axis 7 to position [{positionsIndex[i]}]: {Axis7Pos[positionsIndex[i]]}')
+    axis7.moveAbsolute(Axis7Pos[positionsIndex[i]])
     
     if waitForAxis6n7inPosition():
         time.sleep(0.5)
+        input("press enter to insert hex key...")
         if insertAxis8():
+            input("Press enter to start rotation process")
             hexScrews.loc[i,'Range-Axis10']=fullRotationAxis10()
+            input("Press enter to go to next position")
         else:
             hexScrews.loc[i,'Range-Axis10']="FAIL"
-    """
+    
 
 
