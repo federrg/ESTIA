@@ -175,7 +175,7 @@ def fullRotationAxis10():
     totalRange = maxFwdPos - maxBwdPos
     return totalRange
     
-
+"""
 # Initialization
 # Homing axes 8 and 9
 print(f"    INITIALIZING TEST")
@@ -219,7 +219,7 @@ if not axis10.getHomedStatus():
     else:
         print(f"   ERROR: error in positioning axis 6 or 7. Position not reached")
         sys.exit()
-
+"""
 #Hex screws test sequence
 
 print(f"    Hex position testing ready to begin")
@@ -243,6 +243,8 @@ for i in range(len(positionsIndex)):
             input("Press enter to go to next position")
         else:
             hexScrews.loc[i,'Range-Axis10']="FAIL"
+
+hexScrews.to_csv("HexKeysPosWithRotation.txt")
     
 
 
