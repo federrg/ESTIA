@@ -4,17 +4,30 @@ import time
 import sys
 from motionFunctionsLib import *
 import math
+import argparse
 
+AMSNetId='5.82.112.102.1.1'
 
+############################################################################
+#Command line argument parser
+parser = argparse.ArgumentParser(description='Test the rotation range of the ESTIA Selene guides')
+parser.add_argument('--top',
+                    default=None,
+                    action='store_true',     
+                    help='Test all the mirrors of the top section (default test all mirrors)')
+parser.add_argument('--bottom', 
+                    default=None,
+                    action='store_true',     
+                    help='Test all the mirrors of the bottom section (default test all mirrors)')
 
-try:
-    section = sys.argv[1]
-except:
-    section = None
-#section = None is top and bottom
-#section = --top is just the top mirrors
-#section = --bottom is just the bottom mirrors
+parser.add_argument('-m', '--manual', 
+                    default=False, 
+                    action='store_true',     
+                    help='Activate manual mode')
 
+args = parser.parse_args()
+
+############################################################################
 #Preparing pandas data
 hexScrews = pd.read_csv('HexKeysPos.txt', header=None)
 hexScrews.columns = ['X-Axis6','Z-Axis7']
@@ -36,7 +49,8 @@ screwArrayBottom = []
 screwArrayTotal = list(range(0, len(hexScrews)))
 arrayDone = False
 
-if section == "--top":
+if args.top:
+    print(f"Testing top section mirrors hex inserts")
     index = 0
     indexLimit = 2
     factor3 = 2
@@ -57,9 +71,9 @@ if section == "--top":
         if index >= len(hexScrews):
             arrayDone = True
     positionsIndex = screwArrayTop
-    
 
-elif section == "--bottom":
+elif args.bottom:
+    print(f"Testing bottom section mirrors hex inserts")
     index = 3
     indexLimit = 5
     factor3 = 3
@@ -80,15 +94,11 @@ elif section == "--bottom":
             arrayDone = True
     positionsIndex = screwArrayBottom
 else:
+    print(f"Testing all mirrors hex inserts")
     positionsIndex = screwArrayTotal
 
 print(f'Array of positions to be tested {positionsIndex}')
-
-AMSNetId='5.82.112.102.1.1'
-
-
-
-
+############################################################################
 #PLC connection
 plc1=plc(plcAmsNetId=AMSNetId, plcPort=852)
 plc1.connect()
@@ -101,7 +111,22 @@ axis9=axis(plc1, axisNum=9)
 axis10=axis(plc1, axisNum=10)
 axis11=axis(plc1, axisNum=11)
 
+############################################################################
 #Functions to be used
+def manualMode(manual=args.manual, skipPosition=False):
+    if manual and skipPosition:
+        key=input("Press ENTER to continue or s to skip this position: ")
+        if key == '':
+            return False
+        elif key == 's' or key =='S':
+            return True
+    elif manual and not skipPosition:
+        input('"Press ENTER to continue...')
+        return 
+    else:
+        return 
+
+
 def waitForAxis6n7inPosition():
     inPosition = False
     i = 0
@@ -176,11 +201,12 @@ def fullRotationAxis10():
     totalRange = maxFwdPos - maxBwdPos
     return totalRange
     
-
+############################################################################
 # Initialization
 # Homing axes 8 and 9
 print(f"    INITIALIZING TEST")
 print(f"  Homing axes 8 and 9")
+manualMode()
 axis8.axisInit()
 axis8.home()
 axis9.axisInit()
@@ -199,21 +225,26 @@ else:
     print(f"    ERROR: when homing")
     sys.exit()
 
+
 # Homing axis 10
 axis10.axisInit()
 if not axis10.getHomedStatus():
     print(f"Axis 10 not homed, moving to first screw")
+    manualMode()
     axis6.moveAbsolute(Axis6Pos[0])
     axis7.moveAbsolute(Axis7Pos[0])
     if waitForAxis6n7inPosition():
         print(f"Axis 6 in position {Axis6Pos[0]} and axis 7 in {Axis7Pos[0]} ")
+        manualMode()
         if insertAxis8():
             print(f"Homing axis 10")
             axis10.home()
             time.sleep(1)
             if axis10.getHomedStatus():
                 print(f"Axis 10 homed")
-                input("Axis 10 homed Press enter to continue...")
+                manualMode()
+                print('    Moving Axis 8 to position :28')
+                axis8.moveAbsoluteAndWait(28)
             else:
                 print(f"   ERROR: Cannot home axis 10")
                 sys.exit()
@@ -224,26 +255,35 @@ if not axis10.getHomedStatus():
 #Hex screws test sequence
 
 print(f"    Hex position testing ready to begin")
-
+manualMode()
 for i in range(len(positionsIndex)):
+    
     axis8.moveAbsoluteAndWait(28)
     axis9.moveAbsoluteAndWait(28)
 
     print(f'Moving axis 6 to position [{positionsIndex[i]}]: {Axis6Pos[positionsIndex[i]]}')
-    axis6.moveAbsolute(Axis6Pos[positionsIndex[i]])
-
     print(f'Moving axis 7 to position [{positionsIndex[i]}]: {Axis7Pos[positionsIndex[i]]}')
-    axis7.moveAbsolute(Axis7Pos[positionsIndex[i]])
+    if manualMode(skipPosition=True):
+        i=i+1
+    else:
+        axis6.moveAbsolute(Axis6Pos[positionsIndex[i]])
+        axis7.moveAbsolute(Axis7Pos[positionsIndex[i]])
     
-    if waitForAxis6n7inPosition():
-        time.sleep(0.5)
-        input("press enter to insert hex key...")
-        if insertAxis8():
-            input("Press enter to start rotation process")
-            hexScrews.loc[i,'Range-Axis10']=fullRotationAxis10()
-            input("Press enter to go to next position")
-        else:
-            hexScrews.loc[i,'Range-Axis10']="FAIL"
+        if waitForAxis6n7inPosition():
+            manualSkip = False
+            time.sleep(0.5)
+            manualMode()
+            if insertAxis8():
+                print("Start rotation process")
+                manualMode()
+                hexScrews.loc[i,'Range-Axis10']=fullRotationAxis10()
+                print("Press enter to go to next position")
+                manualMode()
+            else:
+                hexScrews.loc[i,'Range-Axis10']="FAIL"
+                print("Range measurmenet FAILED. Press enter to go to next position")
+                manualMode()
+
 hexScrews.to_csv("HexKeysPosWithRotation.txt")
 
 
