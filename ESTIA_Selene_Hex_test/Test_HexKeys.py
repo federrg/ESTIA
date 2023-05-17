@@ -183,6 +183,23 @@ def insertAxis8():
         print(f"   ERROR Axis 8 not fully inserted cehck current state in TwinCAT")
         return False
 
+def axis8and9fullyOut():
+    if (plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFullyOut8", pyads.PLCTYPE_BOOL)
+     and plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFullyOut9", pyads.PLCTYPE_BOOL)):
+        return True
+    else:
+        axis8.moveAbsolute(28)
+        axis9.moveAbsolute(28)
+        fullyOutState = False
+        while not fullyOutState:
+            fullyOutState = (plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFullyOut8", pyads.PLCTYPE_BOOL) 
+                         and plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFullyOut9", pyads.PLCTYPE_BOOL))
+        if fullyOutState:
+            return True
+        else: 
+            return False
+
+
 def fullRotationAxis10():
     axis10.jogBwd()
     time.sleep(0.5)
@@ -258,9 +275,7 @@ print(f"    Hex position testing ready to begin")
 manualMode()
 for i in range(len(positionsIndex)):
     
-    #Improve this part, waiting takes too long and there is error. use just moveAbs
-    axis8.moveAbsoluteAndWait(28)
-    axis9.moveAbsoluteAndWait(27.5)
+    axis8and9fullyOut()
 
     print(f'Moving axis 6 to position [{positionsIndex[i]}]: {Axis6Pos[positionsIndex[i]]}')
     print(f'Moving axis 7 to position [{positionsIndex[i]}]: {Axis7Pos[positionsIndex[i]]}')
@@ -284,10 +299,9 @@ for i in range(len(positionsIndex)):
                 hexScrews.loc[i,'Range-Axis10']="FAIL"
                 print("Range measurmenet FAILED. Press enter to go to next position")
                 manualMode()
+    hexScrews.to_csv("HexKeysPosWithRotation.txt", mode='w+') #try using just +
 
 
-#Add handle for keyboard interrupt to always execute this:
-hexScrews.to_csv("HexKeysPosWithRotation.txt")
 
 
 
