@@ -186,14 +186,14 @@ def insertAxis8():
 def fullRotationAxis10():
     axis10.jogBwd()
     time.sleep(0.5)
-    if axis10.waitForStatusBit(axis10.getErrorStatus, True): #Check if it is better to use lag error
+    if axis10.waitForStatusBit(axis10.getErrorStatus, True, timeout=200): #Check if it is better to use lag error
         axis10.jogStop()
         maxBwdPos = axis10.getActPos()
         axis10.axisInit()
     
-    axis10.jogBwd()
+    axis10.jogFwd()
     time.sleep(0.5)
-    if axis10.waitForStatusBit(axis10.getErrorStatus, True): #Check if it is better to use lag error
+    if axis10.waitForStatusBit(axis10.getErrorStatus, True, timeout=200): #Check if it is better to use lag error
         axis10.jogStop()
         maxFwdPos = axis10.getActPos()
         axis10.axisInit()
@@ -258,8 +258,9 @@ print(f"    Hex position testing ready to begin")
 manualMode()
 for i in range(len(positionsIndex)):
     
+    #Improve this part, waiting takes too long and there is error. use just moveAbs
     axis8.moveAbsoluteAndWait(28)
-    axis9.moveAbsoluteAndWait(28)
+    axis9.moveAbsoluteAndWait(27.5)
 
     print(f'Moving axis 6 to position [{positionsIndex[i]}]: {Axis6Pos[positionsIndex[i]]}')
     print(f'Moving axis 7 to position [{positionsIndex[i]}]: {Axis7Pos[positionsIndex[i]]}')
@@ -284,6 +285,8 @@ for i in range(len(positionsIndex)):
                 print("Range measurmenet FAILED. Press enter to go to next position")
                 manualMode()
 
+
+#Add handle for keyboard interrupt to always execute this:
 hexScrews.to_csv("HexKeysPosWithRotation.txt")
 
 
