@@ -7,6 +7,7 @@ import math
 import argparse
 
 AMSNetId='5.82.112.102.1.1'
+rotationVelocity=60
 
 ############################################################################
 #Command line argument parser
@@ -162,43 +163,69 @@ def waitForAxis6n7inPosition():
         print(f" Axes 6 and 7 are in target position")
         return True
 
+def axis8and9fullyOut():
+    if (plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFullyOut8", pyads.PLCTYPE_BOOL)
+     and plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFullyOut9", pyads.PLCTYPE_BOOL)):
+        return True
+    else:
+        axis8.moveAbsolute(28)
+        axis9.moveAbsolute(28)
+        fullyOutState = False
+        sleep.time(2)
+        if (plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewInserted8", pyads.PLCTYPE_BOOL)\
+        or plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewInserted9", pyads.PLCTYPE_BOOL)):
+            print("ERROR: axis 8 or 9 stuck and cannot go fully out")
+            print("Fix the proble and press enter to continue")
+            manualMode()
+            print("Homing again axis 8 and 9")
+            axis8.home()
+            axis9.home()
+        while not fullyOutState:
+            fullyOutState = (plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFullyOut8", pyads.PLCTYPE_BOOL) 
+                         and plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFullyOut9", pyads.PLCTYPE_BOOL))
+        if fullyOutState:
+            return True
+        else: 
+            return False
+
 def insertAxis8():
     if not plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFulluOut8", pyads.PLCTYPE_BOOL):
-        axis8.moveVelocity(5)
-        #Insert waitforgenericvariable () function once it is defined.
+        axis8and9fullyOut()
 
-        print(f"Axis 8 in position: {axis8.getActPos()}")
-        axis8.moveAbsolute(0)
-        time.sleep(0.5)
-        retries = 5
-        tries = 1
-        while axis8.getMovingStatus():
-            if axis8.getErrorStatus():
-                print(f'   ERROR. axis 8 has error ID = {axis8.getErrorId()}')
-                return False
-        if plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewInserted8", pyads.PLCTYPE_BOOL):
-            print(f"Hex Screw Axis 8 fully inserted")
-            return True
-        elif plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewCollided8", pyads.PLCTYPE_BOOL):
-            print(f"Hex screw Axis 8 in Collided state")
-            while tries <= retries:
-                axis10.moveRelativeAndWait(30)
-                if plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewInserted8", pyads.PLCTYPE_BOOL):
-                    print(f"Hex screw Axis 8 fully inserted")
-                    return True
-                else:
-                    tries = tries + 1
-            print(f"   ERROR Axis 8 still in collision state after 5 tries ")
+    print(f"Axis 8 in position: {axis8.getActPos()}")
+    axis8.moveAbsolute(0)
+    time.sleep(0.5)
+    retries = 5
+    tries = 1
+    while axis8.getMovingStatus():
+        if axis8.getErrorStatus():
+            print(f'   ERROR. axis 8 has error ID = {axis8.getErrorId()}')
             return False
-        elif plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewMissed8", pyads.PLCTYPE_BOOL):
-            print(f"Axis 8 missed, move to a hex screw insert posiiton")
-            return False
-        else:
-            print(f"   ERROR Axis 8 not fully inserted check current state in TwinCAT")
-            return False
+    if plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewInserted8", pyads.PLCTYPE_BOOL):
+        print(f"Hex Screw Axis 8 fully inserted")
+        return True
+    elif plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewCollided8", pyads.PLCTYPE_BOOL):
+        print(f"Hex screw Axis 8 in Collided state")
+        while tries <= retries:
+            axis10.moveRelativeAndWait(30)
+            if plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewInserted8", pyads.PLCTYPE_BOOL):
+                print(f"Hex screw Axis 8 fully inserted")
+                return True
+            else:
+                tries = tries + 1
+        print(f"   ERROR Axis 8 still in collision state after 5 tries ")
+        return False
+    elif plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewMissed8", pyads.PLCTYPE_BOOL):
+        print(f"Axis 8 missed, move to a hex screw insert posiiton")
+        return False
+    else:
+        print(f"   ERROR Axis 8 not fully inserted check current state in TwinCAT")
+        return False
 
 def insertAxis9():
-    axis9.moveAbsoluteAndWait(axis9.getHomePosition()+1)
+    if not plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFulluOut9", pyads.PLCTYPE_BOOL):
+        axis8and9fullyOut()
+
     print(f"Axis 9 in position: {axis9.getActPos()}")
     axis9.moveAbsolute(0)
     time.sleep(0.5)
@@ -230,48 +257,34 @@ def insertAxis9():
         print(f"   ERROR Axis 9 not fully inserted cehck current state in TwinCAT")
         return False
 
-def axis8and9fullyOut():
-    if (plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFullyOut8", pyads.PLCTYPE_BOOL)
-     and plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFullyOut9", pyads.PLCTYPE_BOOL)):
-        return True
-    else:
-        axis8.moveAbsolute(28)
-        axis9.moveAbsolute(28)
-        fullyOutState = False
-        while not fullyOutState:
-            fullyOutState = (plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFullyOut8", pyads.PLCTYPE_BOOL) 
-                         and plc1.connection.read_by_name("Hex_Screw_States_8_9.bHexScrewFullyOut9", pyads.PLCTYPE_BOOL))
-        if fullyOutState:
-            return True
-        else: 
-            return False
-
 def fullRotationAxis10():
-    axis10.moveVelocity(-90)
+    axis10.moveVelocity(-rotationVelocity)
     time.sleep(0.5)
     if axis10.waitForStatusBit(axis10.getErrorStatus, True, timeout=200): #Check if it is better to use lag error
         print(f"Backward limit reached")
         axis10.haltAxis()
         maxBwdPos = axis10.getActPos()
         axis10.axisInit()
-        axis10.moveRelativeAndWait(10)
+        if not axis10.moveRelativeAndWait(15):
+            print("WARNING: Axis 10 stuck in the backward end")  
     else:
         axis10.haltAxis()
-        axis10.moveRelativeAndWait(10)
+        axis10.moveRelativeAndWait(15)
         print(f"TIMEOUT ERROR: did not reach an end backwards")
         maxBwdPos=None
     
-    axis10.moveVelocity(90)
+    axis10.moveVelocity(rotationVelocity)
     time.sleep(0.5)
     if axis10.waitForStatusBit(axis10.getErrorStatus, True, timeout=200): #Check if it is better to use lag error
         print(f"Forward limit reached")
         axis10.haltAxis()
         maxFwdPos = axis10.getActPos()
         axis10.axisInit()
-        axis10.moveRelativeAndWait(-10)
+        if not axis10.moveRelativeAndWait(-15):
+            print("WARNING: Axis 10 stuck in the forward end")
     else:
         axis10.haltAxis()
-        axis10.moveRelativeAndWait(-10)
+        axis10.moveRelativeAndWait(-15)
         print(f"TIMEOUT ERROR: did not reach an end forward")
         maxFwdPos=None
 
@@ -285,34 +298,35 @@ def fullRotationAxis10():
     return totalRange
     
 def fullRotationAxis11():
-    axis11.moveVelocity(-90)
+    axis11.moveVelocity(-rotationVelocity)
     time.sleep(0.5)
     if axis11.waitForStatusBit(axis11.getErrorStatus, True, timeout=200): #Check if it is better to use lag error
         print(f"Backward limit reached")
         axis11.haltAxis()
         maxBwdPos = axis11.getActPos()
         axis11.axisInit()
-        axis11.moveRelativeAndWait(10)
+        if not axis10.moveRelativeAndWait(15):
+            print("WARNING: Axis 11 stuck in the backward end")
     else:
         axis11.haltAxis()
-        axis11.moveRelativeAndWait(10)
+        axis11.moveRelativeAndWait(15)
         print(f"TIMEOUT ERROR: did not reach an end backwards")
-        maxBwdPos=0
+        maxBwdPos=None
     
-    
-    axis11.moveVelocity(90)
+    axis11.moveVelocity(rotationVelocity)
     time.sleep(0.5)
     if axis11.waitForStatusBit(axis11.getErrorStatus, True, timeout=200): #Check if it is better to use lag error
         print(f"Forward limit reached")
         axis11.haltAxis()
         maxFwdPos = axis11.getActPos()
         axis11.axisInit()
-        axis11.moveRelativeAndWait(-10)
+        if not axis10.moveRelativeAndWait(-15):
+            print("WARNING: Axis 11 stuck in the forward end")
     else:
         axis11.haltAxis()
-        axis11.moveRelativeAndWait(-10)
+        axis11.moveRelativeAndWait(-15)
         print(f"TIMEOUT ERROR: did not reach an end forward")
-        maxFwdPos=0
+        maxFwdPos=None
 
     if maxBwdPos is None or maxFwdPos is None:
         totalRange=0
@@ -326,10 +340,6 @@ def fullRotationAxis11():
 ############################################################################
 # Initialization
 # Homing axes 8 and 9
-print("TESTING new function")
-if axis9.waitForVariable("MAIN.fTestFloat", pyads.PLCTYPE_LREAL, 3.58):
-    print("Hex_Screw_States_8_9.bHexScrewFullyOut8 wwent FALSE")
-manualMode()
 print(f"    INITIALIZING TEST")
 print(f"  Homing axes 8 and 9")
 manualMode()
