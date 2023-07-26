@@ -727,6 +727,7 @@ class axis:
         timeoutError = False
         while True:
             variableValue=self.plc.connection.read_by_name(varName, plcVarType)
+
             if str(variableValue) == str(expectedValue):
                 break
             if time.time() > timeLimit:
