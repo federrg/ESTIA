@@ -727,7 +727,7 @@ class axis:
         timeoutError = False
         while True:
             variableValue=self.plc.connection.read_by_name(varName, plcVarType)
-            
+
             if str(variableValue) == str(expectedValue):
                 break
             if time.time() > timeLimit:
@@ -743,7 +743,7 @@ class axis:
             return False
         else:
             return True
-            
+
     # boolValue is the status you're waiting for
     # if you're waiting a bit to go high then this should be True
     def waitForStatusBit(
