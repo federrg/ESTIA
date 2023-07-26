@@ -718,6 +718,31 @@ class axis:
             if self.waitForStatusBit(self.getEnabledStatus, True):
                 print(f"    Axis Enabled")
 
+    def waitForVariable(self, varName, plcVarType, expectedValue, timeout=30, sleepInterval=SLEEP_INTERVAL):
+         # If timeout is negative time then just use a default
+        if timeout < 0:
+            timeout = 1
+
+        timeLimit = time.time() + timeout
+        timeoutError = False
+        while True:
+            variableValue=self.plc.connection.read_by_name(varName, plcVarType)
+            if str(variableValue) == str(expectedValue):
+                break
+            if time.time() > timeLimit:
+                timeoutError = True
+                break
+            if sleepInterval > 0:
+                time.sleep(sleepInterval)
+
+        if timeoutError:
+            print(
+                f"  Axis {self.axisNum}: Timeout error waiting for {varName} with value {variableValue} to return {expectedValue}"
+            )
+            return False
+        else:
+            return True
+
     # boolValue is the status you're waiting for
     # if you're waiting a bit to go high then this should be True
     def waitForStatusBit(
